@@ -1,12 +1,11 @@
 from datetime import datetime
-from typing import Any, Callable, Tuple
+from typing import Any, Tuple
 from tkinter import IntVar
 import tkinter as tk
 import customtkinter
 from win32gui import GetForegroundWindow
 import win32process
 import psutil
-from app.facereader import FaceReader
 import threading
 import matplotlib
 from matplotlib.figure import Figure
@@ -14,6 +13,8 @@ from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg,
     NavigationToolbar2Tk as NavigationToolbar2TkAgg,
 )
+
+from app.facereader import FaceReader
 
 matplotlib.use("TkAgg")
 
@@ -59,49 +60,9 @@ class Tabs(customtkinter.CTkTabview):
     def __init__(
         self,
         master: Any,
-        width: int = 300,
-        height: int = 250,
-        corner_radius: int | None = None,
-        border_width: int | None = None,
-        bg_color: str | Tuple[str, str] = "transparent",
-        fg_color: str | Tuple[str, str] | None = None,
-        border_color: str | Tuple[str, str] | None = None,
-        segmented_button_fg_color: str | Tuple[str, str] | None = None,
-        segmented_button_selected_color: str | Tuple[str, str] | None = None,
-        segmented_button_selected_hover_color: str
-        | Tuple[str, str]
-        | None = None,
-        segmented_button_unselected_color: str | Tuple[str, str] | None = None,
-        segmented_button_unselected_hover_color: str
-        | Tuple[str, str]
-        | None = None,
-        text_color: str | Tuple[str, str] | None = None,
-        text_color_disabled: str | Tuple[str, str] | None = None,
-        command: Callable[..., Any] | Any = None,
-        anchor: str = "center",
-        state: str = "normal",
-        **kwargs,
     ):
         super().__init__(
             master,
-            width,
-            height,
-            corner_radius,
-            border_width,
-            bg_color,
-            fg_color,
-            border_color,
-            segmented_button_fg_color,
-            segmented_button_selected_color,
-            segmented_button_selected_hover_color,
-            segmented_button_unselected_color,
-            segmented_button_unselected_hover_color,
-            text_color,
-            text_color_disabled,
-            command,
-            anchor,
-            state,
-            **kwargs,
         )
 
         self.add("Main")
@@ -121,29 +82,9 @@ class MainScreen(customtkinter.CTkFrame):
     def __init__(
         self,
         master: Any,
-        width: int = 200,
-        height: int = 200,
-        corner_radius: int | str | None = None,
-        border_width: int | str | None = None,
-        bg_color: str | Tuple[str, str] = "transparent",
-        fg_color: str | Tuple[str, str] | None = None,
-        border_color: str | Tuple[str, str] | None = None,
-        background_corner_colors: Tuple[str | Tuple[str, str]] | None = None,
-        overwrite_preferred_drawing_method: str | None = None,
-        **kwargs,
     ):
         super().__init__(
             master,
-            width,
-            height,
-            corner_radius,
-            border_width,
-            bg_color,
-            fg_color,
-            border_color,
-            background_corner_colors,
-            overwrite_preferred_drawing_method,
-            **kwargs,
         )
         self.label = customtkinter.CTkLabel(self, text="")
         self.label.pack()
@@ -200,22 +141,21 @@ class MainScreen(customtkinter.CTkFrame):
         )
 
     def get_current_app(self):
-        pid = win32process.GetWindowThreadProcessId(GetForegroundWindow())
-        process_name = psutil.Process(pid[-1]).name().split(".")[0].lower()
+        # pid = win32process.GetWindowThreadProcessId(GetForegroundWindow())
+        # process_name = psutil.Process(pid[-1]).name().split(".")[0].lower()
 
-        if process_name in self.VALID_APPS:
-            self.label.configure(text=process_name)
-        else:
-            self.label.configure(text="DO YOUR WORK!")
+        # if process_name in self.VALID_APPS:
+        #     self.label.configure(text=process_name)
+        # else:
+        #     self.label.configure(text="DO YOUR WORK!")
         self.after(2000, self.get_current_app)
 
     def onclick_start(self):
-        print("start button was clicked")
         datetime_name = str(datetime.now().replace(microsecond=0))
-        duration = 20  # TODO: fix this later, curr 5 min
+        duration = self.timer_count.get()
 
         datetime_name = datetime_name.replace(" ", "-").replace(":", "-")
-        print("go to progress page")  # TODO: move to progress page
+
         with open("./logs/logs.txt", "a+") as f:
             f.write(datetime_name + "\n")
         with open(f"./logs/{datetime_name}.csv", "w+") as f:
@@ -227,7 +167,7 @@ class MainScreen(customtkinter.CTkFrame):
         )
         t.start()
         app.tabview.set("Timer")
-        self.master.master.timer_screen.start_timer()
+        self.master.master.timer_screen.start()
 
     def onclick_help(self):
         if self.help_window is None or not self.help_window.winfo_exists():
@@ -243,53 +183,61 @@ class TimerScreen(customtkinter.CTkFrame):
     def __init__(
         self,
         master: Any,
-        width: int = 200,
-        height: int = 200,
-        corner_radius: int | str | None = None,
-        border_width: int | str | None = None,
-        bg_color: str | Tuple[str, str] = "transparent",
-        fg_color: str | Tuple[str, str] | None = None,
-        border_color: str | Tuple[str, str] | None = None,
-        background_corner_colors: Tuple[str | Tuple[str, str]] | None = None,
-        overwrite_preferred_drawing_method: str | None = None,
-        **kwargs,
     ):
         super().__init__(
             master,
-            width,
-            height,
-            corner_radius,
-            border_width,
-            bg_color,
-            fg_color,
-            border_color,
-            background_corner_colors,
-            overwrite_preferred_drawing_method,
-            **kwargs,
         )
-        self.label = customtkinter.CTkLabel(self, text="Timer Screen")
-        self.label.pack()
-
-        self.timer_label = customtkinter.CTkLabel(self, text="")
+        self.session_label = customtkinter.CTkLabel(self, text="")
+        self.session_label.pack()
+        self.timer_label = customtkinter.CTkLabel(
+            self, text="Start a session!"
+        )
         self.timer_label.pack()
 
-    def start_timer(self):
-        self.time_left = self.master.master.main_screen.timer_count.get() * 60
+    def start(self):
+        self.total_sessions = int(
+            self.master.master.main_screen.session_count.get()
+        )
+        self.curr_session = 1
+        self.time_per_session = (
+            self.master.master.main_screen.timer_count.get()
+        )
+        self.curr_session_type = 1  # 1 is study, 0 is break
+
+        self.start_timer(time_left=self.time_per_session)
+
+    def start_timer(self, time_left: int):
+        self.time_left = time_left
         self.update()
 
     def update(self):
         if self.time_left >= 0:
-            text = f"{self.time_left//60}:{self.time_left%60}"
-            self.timer_label.configure(text=text)
+            sessions_left_text = f"Session {self.curr_session}/{self.total_sessions} - {'study' if self.curr_session_type == 1 else 'break'}"
+            self.session_label.configure(text=sessions_left_text)
+            timer_label_text = (
+                f"Time left: {self.time_left//60}:{self.time_left%60}"
+            )
+            self.timer_label.configure(text=timer_label_text)
             self.time_left -= 1
             self.after(1000, self.update)
+        else:
+            if self.curr_session_type == 1:
+                self.curr_session_type = 0
+                self.start_timer(time_left=5)  # 5 min
+            else:
+                self.curr_session_type = 1
+                self.curr_session += 1
+                if self.curr_session <= self.total_sessions:
+                    self.start_timer(time_left=self.time_per_session)
+                else:
+                    self.timer_label.configure(
+                        text="Congrats, you're all done! :D"
+                    )
 
 
 class ReviewScreen(customtkinter.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
-        self.label = customtkinter.CTkLabel(self, text="Review Screen")
-        self.label.pack()
         self.refresh_button = customtkinter.CTkButton(
             self, text="Refresh", command=self.update
         )
@@ -303,6 +251,10 @@ class ReviewScreen(customtkinter.CTkFrame):
         with open(f"./logs/{prev}.csv") as f:
             next(f)
             inputs = [(line.strip().split(",")) for line in f]
+
+        self.label = customtkinter.CTkLabel(self, text=prev)
+        self.label.pack()
+
         x = [float(line[0]) for line in inputs]
         distracted_time = [float(line[1]) for line in inputs]
         blink_ct = [float(line[2]) for line in inputs]
