@@ -213,7 +213,9 @@ class FaceReader:
     def write_to_log(self, name):
         with open(f"./logs/{name}.csv", "a+") as f:
             f.write(
-                f"{self.elapsedTime},{self.distractedTime},{self.blink_count},{self.yawn_count}\n"
+                f"{round(float(self.elapsedTime))},\
+                {round(float(self.distractedTime))},\
+                    {self.blink_count},{self.yawn_count}\n"
             )
 
     def close(self):

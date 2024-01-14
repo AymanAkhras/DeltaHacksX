@@ -277,13 +277,16 @@ class ReviewScreen(customtkinter.CTkFrame):
         self.label = customtkinter.CTkLabel(self, text="Review Screen")
         self.label.pack()
 
-        with open("./logs/2024-01-14-01-17-17.csv") as f:
+        with open("./logs/logs.txt") as f:
+            prev = f.readlines()[-1].strip()
+
+        with open(f"./logs/{prev}.csv") as f:
             next(f)
-            inputs = [line.strip().split(",") for line in f]
-        x = [round(float(line[0]), 2) for line in inputs]
-        distracted_time = [line[1] for line in inputs]
-        blink_ct = [line[2] for line in inputs]
-        yawn_ct = [line[3] for line in inputs]
+            inputs = [(line.strip().split(",")) for line in f]
+        x = [float(line[0]) for line in inputs]
+        distracted_time = [float(line[1]) for line in inputs]
+        blink_ct = [float(line[2]) for line in inputs]
+        yawn_ct = [float(line[3]) for line in inputs]
 
         f = Figure(figsize=(5, 5), dpi=100)
         a = f.add_subplot(221)
