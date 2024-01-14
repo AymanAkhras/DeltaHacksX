@@ -1,12 +1,21 @@
 from datetime import datetime
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, Tuple
 from tkinter import IntVar
+import tkinter as tk
 import customtkinter
 from win32gui import GetForegroundWindow
 import win32process
 import psutil
 from app.facereader import FaceReader
 import threading
+import matplotlib
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import (
+    FigureCanvasTkAgg,
+    NavigationToolbar2Tk as NavigationToolbar2TkAgg,
+)
+
+matplotlib.use("TkAgg")
 
 
 class App(customtkinter.CTk):
@@ -97,10 +106,13 @@ class Tabs(customtkinter.CTkTabview):
 
         self.add("Main")
         self.add("Timer")
+        self.add("Review")
         self.main_screen = MainScreen(master=self.tab("Main"))
         self.main_screen.pack()
         self.timer_screen = TimerScreen(master=self.tab("Timer"))
         self.timer_screen.pack()
+        self.review_screen = ReviewScreen(master=self.tab("Review"))
+        self.review_screen.pack()
 
 
 class MainScreen(customtkinter.CTkFrame):
@@ -257,6 +269,40 @@ class TimerScreen(customtkinter.CTkFrame):
         )
         self.label = customtkinter.CTkLabel(self, text="Timer Screen")
         self.label.pack()
+
+
+class ReviewScreen(customtkinter.CTkFrame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.label = customtkinter.CTkLabel(self, text="Review Screen")
+        self.label.pack()
+
+        with open("./logs/2024-01-14-01-17-17.csv") as f:
+            next(f)
+            inputs = [line.strip().split(",") for line in f]
+        x = [round(float(line[0]), 2) for line in inputs]
+        distracted_time = [line[1] for line in inputs]
+        blink_ct = [line[2] for line in inputs]
+        yawn_ct = [line[3] for line in inputs]
+
+        f = Figure(figsize=(5, 5), dpi=100)
+        a = f.add_subplot(221)
+        a.title.set_text("Distracted time")
+        a.plot(x, distracted_time)
+        b = f.add_subplot(222)
+        b.plot(x, blink_ct)
+        b.title.set_text("Blink count")
+        c = f.add_subplot(223)
+        c.plot(x, yawn_ct)
+        c.title.set_text("Yawn count")
+
+        canvas = FigureCanvasTkAgg(f, self)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+
+        toolbar = NavigationToolbar2TkAgg(canvas, self)
+        toolbar.update()
+        canvas._tkcanvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 
 app = App()
