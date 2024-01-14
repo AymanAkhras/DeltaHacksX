@@ -188,15 +188,15 @@ class MainScreen(customtkinter.CTkFrame):
         self.face_reader = FaceReader()
 
     def onchange_timer_slider(self, value):
-        self.timer_count = int(value)
+        self.timer_count.set(value)
         self.timer_count_label.configure(
-            text=f"Timer: {self.timer_count} mins"
+            text=f"Timer: {self.timer_count.get()} mins"
         )
 
     def onchange_session_slider(self, value):
-        self.session_count = int(value)
+        self.session_count.set(value)
         self.session_count_label.configure(
-            text=f"Session Count: {self.session_count}"
+            text=f"Session Count: {self.session_count.get()}"
         )
 
     def get_current_app(self):
