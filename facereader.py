@@ -30,7 +30,6 @@ landmark_predict = dlib.shape_predictor(datFile)
 
 class FaceReader:
     def __init__(self):
-        self.focusedTime = 0
         self.elapsedTime = 0
         self.distractedTime = 0
         self.blink = 0
@@ -38,6 +37,7 @@ class FaceReader:
         self.blink_thresh = 0.45
         self.succ_frame = 2
         self.count_frame = 0
+        self.prevDistractedTs = 0
 
     # from imutils import
 
@@ -52,16 +52,14 @@ class FaceReader:
         drawing = mp.solutions.drawing_utils  # type: ignore
         y = []
         start_time = time.perf_counter()
-        focused = True
 
         while True:
+            print(self.distractedTime)
             x = []
             _, frm = cam.read()
             frm = cv2.flip(frm, 1)
             res = holis.process(cv2.cvtColor(frm, cv2.COLOR_BGR2RGB))
             y.append(x)
-
-            self.check_distracted(res)
 
             drawing.draw_landmarks(
                 frm, res.face_landmarks, holistic.FACEMESH_CONTOURS
@@ -72,14 +70,13 @@ class FaceReader:
             drawing.draw_landmarks(
                 frm, res.right_hand_landmarks, hands.HAND_CONNECTIONS
             )
+
             # if lookingAtScreen:
             end_time = time.perf_counter()
             self.elapsedTime = end_time - start_time
             elapsed_time_formatted = str(timedelta(seconds=self.elapsedTime))
-            if focused:
-                self.focusedTime += end_time - start_time
-            else:
-                self.distractedTime += self.focusedTime - end_time
+            self.check_distracted(res, end_time)
+
             # Calculates Number of Blinks
             if cam.get(cv2.CAP_PROP_POS_FRAMES) == cam.get(
                 cv2.CAP_PROP_FRAME_COUNT
@@ -147,7 +144,8 @@ class FaceReader:
                 cv2.destroyAllWindows()
                 break
 
-    def check_distracted(self, results):
+    def check_distracted(self, results, curr_time):
+        # if face detected, then check if user is looking at the screen
         if results.face_landmarks:
             hl = results.face_landmarks.landmark
             left_pt_x = hl[LEFT_FACE_PT].x
@@ -155,8 +153,12 @@ class FaceReader:
             center_pt_x = (right_pt_x + left_pt_x) / 2
             nose_pt = hl[NOSE_FACE_PT].x
 
+            # check if face turned by measuring the distance ratio between
+            # midpoint of L and R side of face and nose
             dist_lr = (right_pt_x - left_pt_x) / 2
-
             if abs(nose_pt - center_pt_x) / dist_lr > FACE_TURNING_THRESHOLD:
-                print("turned")
-                # add to distracted time
+                self.distractedTime += curr_time - self.prevDistractedTs
+        # if no face detected, user is prob doing something else
+        else:
+            self.distractedTime += curr_time - self.prevDistractedTs
+        self.prevDistractedTs = curr_time
