@@ -276,7 +276,13 @@ class ReviewScreen(customtkinter.CTkFrame):
         super().__init__(master)
         self.label = customtkinter.CTkLabel(self, text="Review Screen")
         self.label.pack()
+        self.refresh_button = customtkinter.CTkButton(
+            self, text="Refresh", command=self.update
+        )
+        self.refresh_button.pack()
+        self.update()
 
+    def update(self):
         with open("./logs/logs.txt") as f:
             prev = f.readlines()[-1].strip()
 
