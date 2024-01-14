@@ -42,18 +42,19 @@ class FaceReader:
 
     cam = cv2.VideoCapture("assets/my_blink.mp4")
 
-    def data_collection(self):
+    def data_collection(self, name, duration):
         cam = cv2.VideoCapture(0)
-        print("Starting Program To track your cute face")
+        print("Starting Program To track your cute face", name, duration)
         holistic = mp.solutions.holistic  # type: ignore
         hands = mp.solutions.hands  # type: ignore
         holis = holistic.Holistic()
         drawing = mp.solutions.drawing_utils  # type: ignore
         y = []
         start_time = time.perf_counter()
+        block_start_time = time.perf_counter()
+        block_time_limit = duration // 5
 
         while True:
-            print(self.distractedTime)
             x = []
             _, frame = cam.read()
             frame = cv2.flip(frame, 1)
@@ -76,6 +77,15 @@ class FaceReader:
             end_time = time.perf_counter()
             self.elapsedTime = end_time - start_time
             elapsed_time_formatted = str(timedelta(seconds=self.elapsedTime))
+            if self.elapsedTime >= duration:  # timer is done
+                self.write_to_log(name)
+                cam.release()
+                cv2.destroyAllWindows()
+                break
+            if end_time >= block_start_time + block_time_limit:
+                self.write_to_log(name)
+                block_start_time = end_time
+
             self.check_distracted(res, end_time)
 
             # detecting the faces
@@ -162,3 +172,10 @@ class FaceReader:
         else:
             self.distractedTime += curr_time - self.prevDistractedTs
         self.prevDistractedTs = curr_time
+
+    def write_to_log(self, name):
+        with open(f"./logs/{name}.csv", "a+") as f:
+            f.write(f"{self.elapsedTime},{self.distractedTime},{self.blink}\n")
+
+    def close(self):
+        print("Session complete; closing the camera and saving logs...")
