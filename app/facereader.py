@@ -2,18 +2,18 @@ from datetime import timedelta
 import time
 import mediapipe as mp
 import cv2
+import dlib  # for face and landmark detection
+import imutils
+from imutils import face_utils
 
-from config import (
+from app.config import (
     LEFT_FACE_PT,
     RIGHT_FACE_PT,
     NOSE_FACE_PT,
     FACE_TURNING_THRESHOLD,
 )
-import dlib  # for face and landmark detection
-import imutils
 
-from imutils import face_utils
-import functionUtils
+from app import functionUtils
 
 # Eye landmarks
 (L_start, L_end) = face_utils.FACIAL_LANDMARKS_IDXS["left_eye"]
