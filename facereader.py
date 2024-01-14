@@ -21,28 +21,37 @@ import functionUtils
 
 # Initializing the Models for Landmark and
 # face Detection
-datFile = "./models/shape_predictor_68_face_landmarks.dat"
+dat_file = "./models/shape_predictor_68_face_landmarks.dat"
+predictor = dlib.shape_predictor(dat_file)
+detector2 = cv2.CascadeClassifier(
+    "./models/haarcascade_frontalface_default.xml"
+)
 
 detector = dlib.get_frontal_face_detector()
-landmark_predict = dlib.shape_predictor(datFile)
+landmark_predict = dlib.shape_predictor(dat_file)
 
 
 class FaceReader:
+    global COUNTER
+
     def __init__(self):
+        self.yawn_thresh = 40
+        self.blink_thresh = 0.25
+        self.blink_count = 0
+        self.yawn_count = 0
         self.elapsedTime = 0
         self.distractedTime = 0
-        self.blink = 0
-        # Variables
-        self.blink_thresh = 0.35
-        self.succesful_frames = 15
         self.count_frame = 0
         self.prevDistractedTs = 0
+        self.last_yawn_update_time = time.time()
+        self.last_blink_update_time = time.time()
 
     # from imutils import
 
     cam = cv2.VideoCapture("assets/my_blink.mp4")
 
     def data_collection(self, name, duration):
+        COUNTER = 0
         cam = cv2.VideoCapture(0)
         print("Starting Program To track your cute face", name, duration)
         holistic = mp.solutions.holistic  # type: ignore
@@ -60,10 +69,10 @@ class FaceReader:
             frame = cv2.flip(frame, 1)
             frame = imutils.resize(frame, width=640)
             res = holis.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            y.append(x)
+            # y.append(x)
 
             img_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            y.append(x)
+            # y.append(x)
             drawing.draw_landmarks(
                 frame, res.face_landmarks, holistic.FACEMESH_CONTOURS
             )
@@ -87,67 +96,95 @@ class FaceReader:
                 block_start_time = end_time
 
             self.check_distracted(res, end_time)
+            rects = detector2.detectMultiScale(
+                img_gray,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(30, 30),
+                flags=cv2.CASCADE_SCALE_IMAGE,
+            )
 
-            # detecting the faces
-            faces = detector(img_gray)
-            for face in faces:
-                # landmark detection
-                shape = landmark_predict(img_gray, face)
+            # for rect in rects:
+            for x, y, w, h in rects:
+                rect = dlib.rectangle(int(x), int(y), int(x + w), int(y + h))
+
+                shape = predictor(img_gray, rect)
                 shape = face_utils.shape_to_np(shape)
 
-                lefteye = shape[L_start:L_end]
-                righteye = shape[R_start:R_end]
+                eye = functionUtils.final_ear(shape)
+                ear = eye[0]
+                leftEye = eye[1]
+                rightEye = eye[2]
 
-                # Calculate the EAR
-                left_EAR = functionUtils.calculate_EAR(lefteye)
-                right_EAR = functionUtils.calculate_EAR(righteye)
+                distance = functionUtils.lip_distance(shape)
 
-                # Avg of left and right eye EAR
-                avg = (left_EAR + right_EAR) / 2
+                leftEyeHull = cv2.convexHull(leftEye)
+                rightEyeHull = cv2.convexHull(rightEye)
+                cv2.drawContours(frame, [leftEyeHull], -1, (0, 255, 0), 1)
+                cv2.drawContours(frame, [rightEyeHull], -1, (0, 255, 0), 1)
 
-                if avg < self.blink_thresh:
-                    self.count_frame += 1  # incrementing the frame count
-                    cv2.putText(
-                        frame,
-                        "1",
-                        (30, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (0, 255, 0),
-                        2,
-                    )
-                    self.blink += 1
+                lip = shape[48:60]
+                cv2.drawContours(frame, [lip], -1, (0, 255, 0), 1)
+
+                if ear < self.blink_thresh:
+                    time_since_last_blink = time.time()
+                    COUNTER += 1
+                    if (
+                        time_since_last_blink - self.last_blink_update_time
+                        >= 3
+                    ):
+                        cv2.putText(
+                            frame,
+                            "Blink Alert",
+                            (10, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (0, 0, 255),
+                            2,
+                        )
+                        self.blink_count += 1
+                        print(f"blink count: {self.blink_count}")
+                        self.time_since_last_blink = time_since_last_blink
                 else:
-                    if self.count_frame >= self.succesful_frames:
+                    COUNTER = 0
+                if distance > self.yawn_thresh:
+                    time_since_last_yawn = time.time()
+                    print(time_since_last_yawn, self.last_yawn_update_time)
+                    if time_since_last_yawn - self.last_yawn_update_time >= 2:
                         cv2.putText(
                             frame,
-                            "2",
-                            (30, 30),
+                            "Yawn Alert",
+                            (10, 50),
                             cv2.FONT_HERSHEY_SIMPLEX,
-                            1,
-                            (0, 255, 0),
+                            0.7,
+                            (0, 0, 255),
                             2,
                         )
-                    else:
-                        self.count_frame = 0
-                        cv2.putText(
-                            frame,
-                            "3",
-                            (30, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            1,
-                            (0, 255, 0),
-                            2,
-                        )
-            cv2.putText(
-                frame,
-                str("Elapsed Time: " + elapsed_time_formatted),
-                (50, 50),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-                2,
-            )
+                        self.yawn_count += 1
+                        print(f"yawn count: {self.yawn_count}")
+                        self.last_yawn_update_time = time_since_last_yawn
+
+                else:
+                    alarm_status2 = False
+
+                cv2.putText(
+                    frame,
+                    "EAR: {:.2f}".format(ear),
+                    (300, 25),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 0, 255),
+                    2,
+                )
+                cv2.putText(
+                    frame,
+                    "YAWN: {:.2f}".format(distance),
+                    (300, 50),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 0, 255),
+                    2,
+                )
             cv2.imshow("window", frame)
             if cv2.waitKey(1) == 27:
                 cam.release()
@@ -175,7 +212,9 @@ class FaceReader:
 
     def write_to_log(self, name):
         with open(f"./logs/{name}.csv", "a+") as f:
-            f.write(f"{self.elapsedTime},{self.distractedTime},{self.blink}\n")
+            f.write(
+                f"{self.elapsedTime},{self.distractedTime},{self.blink_count},{self.yawn_count}\n"
+            )
 
     def close(self):
         print("Session complete; closing the camera and saving logs...")

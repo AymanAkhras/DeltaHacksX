@@ -77,7 +77,6 @@ class App(customtkinter.CTk):
     def get_current_app(self):
         pid = win32process.GetWindowThreadProcessId(GetForegroundWindow())
         process_name = psutil.Process(pid[-1]).name().split(".")[0].lower()
-        print(process_name)
 
         if process_name in self.VALID_APPS:
             self.label.configure(text=process_name)
@@ -95,7 +94,7 @@ class App(customtkinter.CTk):
         with open("./logs/logs.txt", "a+") as f:
             f.write(datetime_name + "\n")
         with open(f"./logs/{datetime_name}.csv", "w+") as f:
-            f.write("total_time,distracted_time,blink_count\n")
+            f.write("total_time,distracted_time,blink_count,yawn_count\n")
 
         t = threading.Thread(
             target=self.face_reader.data_collection,
