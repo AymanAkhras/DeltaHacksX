@@ -15,6 +15,7 @@ from matplotlib.backends.backend_tkagg import (
 )
 
 from app.facereader import FaceReader
+from utils import start_study_session
 
 matplotlib.use("TkAgg")
 
@@ -128,6 +129,12 @@ class MainScreen(customtkinter.CTkFrame):
         self.help_window = None
         self.face_reader = FaceReader()
 
+        self.t = threading.Thread(
+            target=self.face_reader.setup,
+        )
+        self.t.start()
+        # self.face_reader.setup()
+
     def onchange_timer_slider(self, value):
         self.timer_count.set(value)
         self.timer_count_label.configure(
@@ -151,21 +158,11 @@ class MainScreen(customtkinter.CTkFrame):
         self.after(2000, self.get_current_app)
 
     def onclick_start(self):
-        datetime_name = str(datetime.now().replace(microsecond=0))
         duration = self.timer_count.get()
-
-        datetime_name = datetime_name.replace(" ", "-").replace(":", "-")
-
-        with open("./logs/logs.txt", "a+") as f:
-            f.write(datetime_name + "\n")
-        with open(f"./logs/{datetime_name}.csv", "w+") as f:
-            f.write("total_time,distracted_time,blink_count,yawn_count\n")
-
-        t = threading.Thread(
-            target=self.face_reader.data_collection,
-            args=[datetime_name, duration],
+        start_study_session(
+            duration=duration, func=self.face_reader.data_collection
         )
-        t.start()
+
         app.tabview.set("Timer")
         self.master.master.timer_screen.start()
 
@@ -193,6 +190,7 @@ class TimerScreen(customtkinter.CTkFrame):
             self, text="Start a session!"
         )
         self.timer_label.pack()
+        self.func = self.master.master.main_screen.face_reader.data_collection
 
     def start(self):
         self.total_sessions = int(
@@ -228,7 +226,11 @@ class TimerScreen(customtkinter.CTkFrame):
                 self.curr_session_type = 1
                 self.curr_session += 1
                 if self.curr_session <= self.total_sessions:
+                    start_study_session(
+                        duration=self.time_per_session, func=self.func
+                    )
                     self.start_timer(time_left=self.time_per_session)
+
                 else:
                     self.timer_label.configure(
                         text="Congrats, you're all done! :D"

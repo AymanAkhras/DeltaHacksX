@@ -1,4 +1,3 @@
-from datetime import timedelta
 import time
 import mediapipe as mp
 import cv2
@@ -35,6 +34,9 @@ class FaceReader:
     global COUNTER
 
     def __init__(self):
+        self.cam = None
+
+    def reset(self):
         self.yawn_thresh = 40
         self.blink_thresh = 0.25
         self.blink_count = 0
@@ -45,15 +47,18 @@ class FaceReader:
         self.prevDistractedTs = 0
         self.last_yawn_update_time = time.time()
         self.last_blink_update_time = time.time()
+        while not self.cam:
+            time.sleep(1)  # wait for camera setup
 
-    # from imutils import
-
-    cam = cv2.VideoCapture("assets/my_blink.mp4")
+    def setup(self):
+        print("Setting up camera..")
+        self.cam = cv2.VideoCapture(0)
+        print("Camera setup complete")
 
     def data_collection(self, name, duration):
-        COUNTER = 0
-        cam = cv2.VideoCapture(0)
+        self.reset()
         print("Starting Program To track your cute face", name, duration)
+        COUNTER = 0
         holistic = mp.solutions.holistic  # type: ignore
         hands = mp.solutions.hands  # type: ignore
         holis = holistic.Holistic()
@@ -65,7 +70,7 @@ class FaceReader:
 
         while True:
             x = []
-            _, frame = cam.read()
+            _, frame = self.cam.read()
             frame = cv2.flip(frame, 1)
             frame = imutils.resize(frame, width=640)
             res = holis.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -85,10 +90,9 @@ class FaceReader:
             # if lookingAtScreen:
             end_time = time.perf_counter()
             self.elapsedTime = end_time - start_time
-            elapsed_time_formatted = str(timedelta(seconds=self.elapsedTime))
+
             if self.elapsedTime >= duration:  # timer is done
                 self.write_to_log(name)
-                cam.release()
                 cv2.destroyAllWindows()
                 break
             if end_time >= block_start_time + block_time_limit:
@@ -164,9 +168,6 @@ class FaceReader:
                         print(f"yawn count: {self.yawn_count}")
                         self.last_yawn_update_time = time_since_last_yawn
 
-                else:
-                    alarm_status2 = False
-
                 cv2.putText(
                     frame,
                     "EAR: {:.2f}".format(ear),
@@ -187,7 +188,6 @@ class FaceReader:
                 )
             cv2.imshow("window", frame)
             if cv2.waitKey(1) == 27:
-                cam.release()
                 cv2.destroyAllWindows()
                 break
 
@@ -220,3 +220,5 @@ class FaceReader:
 
     def close(self):
         print("Session complete; closing the camera and saving logs...")
+        self.cam.release()
+        cv2.destroyAllWindows()
