@@ -202,7 +202,6 @@ class MainScreen(customtkinter.CTkFrame):
     def get_current_app(self):
         pid = win32process.GetWindowThreadProcessId(GetForegroundWindow())
         process_name = psutil.Process(pid[-1]).name().split(".")[0].lower()
-        # print(process_name)
 
         if process_name in self.VALID_APPS:
             self.label.configure(text=process_name)
@@ -228,6 +227,7 @@ class MainScreen(customtkinter.CTkFrame):
         )
         t.start()
         app.tabview.set("Timer")
+        self.master.master.timer_screen.start_timer()
 
     def onclick_help(self):
         if self.help_window is None or not self.help_window.winfo_exists():
@@ -270,6 +270,20 @@ class TimerScreen(customtkinter.CTkFrame):
         self.label = customtkinter.CTkLabel(self, text="Timer Screen")
         self.label.pack()
 
+        self.timer_label = customtkinter.CTkLabel(self, text="")
+        self.timer_label.pack()
+
+    def start_timer(self):
+        self.time_left = self.master.master.main_screen.timer_count.get() * 60
+        self.update()
+
+    def update(self):
+        if self.time_left >= 0:
+            text = f"{self.time_left//60}:{self.time_left%60}"
+            self.timer_label.configure(text=text)
+            self.time_left -= 1
+            self.after(1000, self.update)
+
 
 class ReviewScreen(customtkinter.CTkFrame):
     def __init__(self, master):
@@ -294,7 +308,7 @@ class ReviewScreen(customtkinter.CTkFrame):
         blink_ct = [float(line[2]) for line in inputs]
         yawn_ct = [float(line[3]) for line in inputs]
 
-        f = Figure(figsize=(5, 5), dpi=100)
+        f = Figure(figsize=(8, 8), dpi=100)
         a = f.add_subplot(221)
         a.title.set_text("Distracted time")
         a.plot(x, distracted_time)
